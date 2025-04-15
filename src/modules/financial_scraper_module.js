@@ -1,28 +1,30 @@
 const fs = require("fs");
-const puppeteer = require("puppeteer");
+const path = require("path");
+const { Worker } = require('worker_threads'); // Import Worker
 
 // --- Logging Utility ---
 function logScraper(message) {
     const time = new Date().toISOString();
-    console.log(`[${time}] [FIN_SCRAPER] ${message}`);
+    // Changed prefix to MANAGER to distinguish from workers
+    console.log(`[${time}] [FIN_MANAGER] ${message}`);
 }
 
-// --- Main Exportable Function ---
+// --- Main Exportable Function - Now a Worker Manager ---
 async function scrapeFinancialDetails(companiesFilePath, cookiesFilePath, outputFile, options = {}) {
-    logScraper("Starting financial details scraping process (with incremental saving)...");
+    logScraper("Starting financial details scraping process (using Worker Threads)...");
     logScraper(`Companies input: ${companiesFilePath}`);
     logScraper(`Cookies input: ${cookiesFilePath}`);
     logScraper(`Output file (JSONL): ${outputFile}`);
 
-    const { scraperPauseMs = 2000, pageTimeoutMs = 60000 } = options;
+    // Get options, provide default for worker count
+    const { numberOfWorkers = 1, scraperPauseMs = 2000, pageTimeoutMs = 60000 } = options;
+    logScraper(`Using ${numberOfWorkers} worker(s).`);
 
-    let browser = null;
     let companiesData;
-    let cookies;
     let overallSuccess = true;
 
     try {
-        // --- Load prerequisites ---
+        // --- Load Companies Data ---
         logScraper("Loading companies data...");
         try {
             const companiesRaw = await fs.promises.readFile(companiesFilePath, "utf-8");
@@ -34,17 +36,6 @@ async function scrapeFinancialDetails(companiesFilePath, cookiesFilePath, output
         }
         logScraper(`Loaded ${companiesData.length} companies.`);
 
-        logScraper("Loading cookies...");
-        try {
-            const cookiesRaw = await fs.promises.readFile(cookiesFilePath, "utf-8");
-            cookies = JSON.parse(cookiesRaw);
-            if (!Array.isArray(cookies)) throw new Error("Cookies data is not an array.");
-        } catch (err) {
-            logScraper(`❌ Error reading cookies file ${cookiesFilePath}: ${err.message}`);
-            return false;
-        }
-        logScraper("Cookies loaded.");
-
         // --- Clear/Initialize Output File ---
         logScraper(`Initializing output file: ${outputFile}`);
         try {
@@ -54,115 +45,117 @@ async function scrapeFinancialDetails(companiesFilePath, cookiesFilePath, output
             return false;
         }
 
-        // --- Launch Puppeteer ---
-        logScraper("Launching Puppeteer browser...");
-        browser = await puppeteer.launch({ headless: false });
-        logScraper("Browser launched.");
+        // --- Split Companies into Chunks for Workers ---
+        const totalCompanies = companiesData.length;
+        const chunkSize = Math.ceil(totalCompanies / numberOfWorkers);
+        const companyChunks = [];
+        for (let i = 0; i < totalCompanies; i += chunkSize) {
+            companyChunks.push(companiesData.slice(i, i + chunkSize));
+        }
+        logScraper(`Split ${totalCompanies} companies into ${companyChunks.length} chunk(s) for ${numberOfWorkers} worker(s).`);
 
-        // --- Iterate through companies ---
-        for (let i = 0; i < companiesData.length; i++) {
-            const companyInfo = companiesData[i];
-            const permalink = companyInfo["Organization Permalink"];
-            const companyName = companyInfo["Organization Name"];
-            let companySuccess = false;
+        // --- Launch Workers ---
+        const workerPromises = [];
+        const workerPath = path.resolve(__dirname, 'financial_scraper_worker.js'); // Path to the worker script
 
-            if (!permalink) {
-                logScraper(`⚠️ Skipping company #${i + 1} ("${companyName}") due to missing permalink.`);
-                continue;
+        logScraper(`Launching ${numberOfWorkers} worker(s)...`);
+        for (let i = 0; i < numberOfWorkers; i++) {
+            if (!companyChunks[i] || companyChunks[i].length === 0) {
+                logScraper(`No companies assigned to Worker ${i + 1}, skipping launch.`);
+                continue; // Don't launch worker if no work
             }
 
-            const url = `https://www.crunchbase.com/organization/${permalink}/financial_details`;
-            logScraper(`Processing company #${i + 1}/${companiesData.length}: ${companyName} (${permalink})...`);
-            logScraper(`Navigating to: ${url}`);
+            const workerPromise = new Promise((resolve, reject) => {
+                const workerData = {
+                    workerId: i + 1, // Assign an ID for logging
+                    companiesChunk: companyChunks[i],
+                    cookiesFilePath: cookiesFilePath, // Pass the path, worker reads it
+                    options: { scraperPauseMs, pageTimeoutMs } // Pass relevant options
+                };
 
-            let page = null;
-            try {
-                page = await browser.newPage();
-                await page.setCookie(...cookies);
-                await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36');
-                await page.setDefaultNavigationTimeout(pageTimeoutMs);
-                await page.setDefaultTimeout(pageTimeoutMs);
+                const worker = new Worker(workerPath, { workerData });
+                let workerLogPrefix = `[WORKER ${i + 1}]`;
 
-                await page.goto(url, { waitUntil: 'networkidle2' });
-                logScraper("Page loaded.");
-
-                // --- Scrape the table ---
-                const tableSelector = '#funding_rounds > section > div > tile-table > div > table';
-                logScraper(`Waiting for table selector: "${tableSelector}"`);
-                await page.waitForSelector(tableSelector, { timeout: 30000 });
-                logScraper("Table found. Scraping rows...");
-
-                const roundsOnPage = await page.$$eval(`${tableSelector} tbody tr`, (rows) => {
-                    const extractedData = [];
-                    rows.forEach(row => {
-                        const cells = row.querySelectorAll('td');
-                        if (cells.length >= 5) {
-                            const getText = (element) => element ? element.innerText.trim() : null;
-                            const getHref = (element) => element ? element.href : null;
-
-                            const announcedDateEl = cells[0]?.querySelector('span.field-type-date');
-                            const transactionLinkEl = cells[1]?.querySelector('a.component--field-formatter');
-                            const numInvestorsEl = cells[2]?.querySelector('a.field-type-integer');
-                            const moneyRaisedEl = cells[3]?.querySelector('span.field-type-money');
-                            const leadInvestorsEls = cells[4]?.querySelectorAll('identifier-multi-formatter a');
-
-                            const leadInvestors = leadInvestorsEls ? Array.from(leadInvestorsEls).map(el => getText(el)).filter(Boolean).join(', ') : null;
-
-                            extractedData.push({
-                                "Announced Date": announcedDateEl ? (announcedDateEl.title || getText(announcedDateEl)) : null,
-                                "Transaction Name": getText(transactionLinkEl),
-                                "Transaction Link": getHref(transactionLinkEl),
-                                "Number of Investors": getText(numInvestorsEl),
-                                "Money Raised": moneyRaisedEl ? (moneyRaisedEl.title || getText(moneyRaisedEl)) : null,
-                                "Lead Investors": leadInvestors
-                            });
-                        }
-                    });
-                    return extractedData;
+                worker.on('message', async (message) => {
+                    switch (message.type) {
+                        case 'data':
+                            // Received data from worker, append to file
+                            logScraper(`${workerLogPrefix} Received ${message.payload.length} rounds.`);
+                            try {
+                                const linesToAppend = message.payload.map(r => JSON.stringify(r)).join('\n') + '\n';
+                                await fs.promises.appendFile(outputFile, linesToAppend, 'utf-8');
+                            } catch (appendErr) {
+                                logScraper(`❌ Error appending data from ${workerLogPrefix} to ${outputFile}: ${appendErr.message}`);
+                                // Consider how to handle append errors - maybe retry? For now, log it.
+                                overallSuccess = false; // Mark potential data loss
+                            }
+                            break;
+                        case 'error':
+                            // Received error message from worker
+                            logScraper(`❌ ${workerLogPrefix} Reported error: ${message.payload.error} (Company: ${message.payload.name || 'N/A'})`, 'error');
+                            overallSuccess = false; // Mark failure if any worker reports an error
+                            break;
+                        case 'done':
+                            // Worker finished its chunk
+                            logScraper(`✅ ${workerLogPrefix} Finished processing its chunk.`);
+                            resolve({ workerId: i + 1, status: 'completed' });
+                            break;
+                        default:
+                            logScraper(`⚠️ ${workerLogPrefix} Received unknown message type: ${message.type}`, 'warn');
+                    }
                 });
 
-                logScraper(`Scraped ${roundsOnPage.length} rounds for ${companyName}.`);
+                worker.on('error', (err) => {
+                    logScraper(`❌ ${workerLogPrefix} Crashed with error: ${err.message}`, 'error');
+                    overallSuccess = false;
+                    reject({ workerId: i + 1, status: 'error', error: err });
+                });
 
-                if (roundsOnPage.length > 0) {
-                    const companyRounds = roundsOnPage.map(round => ({
-                        "Organization Permalink": permalink,
-                        "Organization Name": companyName,
-                        ...round
-                    }));
+                worker.on('exit', (code) => {
+                    if (code !== 0) {
+                        logScraper(`❌ ${workerLogPrefix} Exited with code ${code}`, 'error');
+                        overallSuccess = false;
+                        // Reject promise if not already resolved/rejected
+                        // This ensures Promise.allSettled gets the failure
+                        reject({ workerId: i + 1, status: 'exited', code: code });
+                    } else {
+                         logScraper(` ${workerLogPrefix} Exited successfully.`);
+                         // If already resolved via 'done' message, this is fine.
+                         // If not resolved, resolve here (though 'done' message is preferred)
+                         resolve({ workerId: i + 1, status: 'exited_ok' });
+                    }
+                });
 
-                    const linesToAppend = companyRounds.map(r => JSON.stringify(r)).join('\n') + '\n';
-                    await fs.promises.appendFile(outputFile, linesToAppend, 'utf-8');
-                    logScraper(`Appended ${companyRounds.length} rounds to ${outputFile}.`);
-                }
-                companySuccess = true;
-
-            } catch (err) {
-                logScraper(`❌ Error processing ${companyName} (${url}): ${err.message}`);
-                overallSuccess = false;
-            } finally {
-                if (page) {
-                    await page.close();
-                    logScraper("Page closed.");
-                }
-                if (i < companiesData.length - 1) {
-                    logScraper(`⏸️ Pausing for ${scraperPauseMs / 1000} seconds...`);
-                    await new Promise(resolve => setTimeout(resolve, scraperPauseMs));
-                }
-            }
+                logScraper(`Launched Worker ${i + 1}.`);
+            });
+            workerPromises.push(workerPromise);
         }
 
-        logScraper("Finished processing all companies.");
-        return overallSuccess;
+        // --- Wait for all workers ---
+        logScraper("Waiting for all workers to complete...");
+        const results = await Promise.allSettled(workerPromises);
+        logScraper("All workers finished.");
+
+        // Check results for any rejections (errors)
+        results.forEach(result => {
+            if (result.status === 'rejected') {
+                logScraper(`Worker ${result.reason?.workerId || '?'} failed or exited abnormally.`, 'warn');
+                overallSuccess = false; // Ensure overall success is false if any worker failed
+            }
+        });
+
 
     } catch (error) {
-        logScraper(`❌ Critical error during financial scraping setup or teardown: ${error.message}`);
-        return false;
-    } finally {
-        if (browser) {
-            await browser.close();
-            logScraper("Browser closed.");
-        }
+        logScraper(`❌ Critical error in financial scraper manager: ${error.message}`);
+        overallSuccess = false;
     }
+
+    if (overallSuccess) {
+        logScraper("✅ Financial scraping process completed successfully (or with non-critical worker errors).");
+    } else {
+         logScraper("❌ Financial scraping process finished with errors.");
+    }
+    return overallSuccess; // Return final status
 }
 
 module.exports = {

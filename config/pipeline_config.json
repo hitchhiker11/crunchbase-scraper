@@ -33,7 +33,8 @@
     },
     "options": {
       "cleanupIntermediateFiles": true,
-      "scraperPauseMs": 200,
-      "pageTimeoutMs": 60000
+      "scraperPauseMs": 2000,
+      "pageTimeoutMs": 60000,
+      "numberOfWorkers": 3
     }
   }

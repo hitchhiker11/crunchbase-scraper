@@ -1,10 +1,10 @@
 # Workflow State
 
 ## Current Phase
-BLUEPRINT
+DONE
 
 ## Status
-NEEDS_PLAN_APPROVAL
+DONE
 
 ## Plan
 1. Install Puppeteer.
@@ -61,30 +61,9 @@ NEEDS_PLAN_APPROVAL
 *   Updated `pipeline_config.json` for the new scraping step.
 *   Updated `run_pipeline.js` to integrate `financial_scraper_module.js`.
 *   Updated `merge_data_module.js` to use scraped financials data.
-*   Updated `pivot_rounds_module.js` to use scraped financials data and adjusted pivoted fields.
-*   Completed implementation of Puppeteer-based financial details scraping within the pipeline.
-*   Outlined plan to implement incremental saving in `financial_scraper_module.js` using JSONL format and update downstream modules.
-*   Modified `financial_scraper_module.js` to save data incrementally to `.jsonl` file.
-*   Updated `pipeline_config.json` to use `.jsonl` extension for scraped financials.
-*   Modified `merge_data_module.js` to parse JSONL input.
-*   Modified `pivot_rounds_module.js` to parse JSONL input.
-*   Updated cleanup step in `run_pipeline.js` for `.jsonl` file.
-*   Completed implementation of incremental saving for Puppeteer scraper.
-*   Outlined plan for project file structure reorganization.
-*   Created directory structure.
-*   Moved files to the new structure.
-*   Updated paths in `config/pipeline_config.json`.
-*   Updated paths and logic in `src/run_pipeline.js` to handle the new structure and config.
-*   Verified modules use passed-in paths.
-*   Completed project structure reorganization.
-*   Debugging Puppeteer timeout error: User provided alternative selectors.
-*   Outlined plan to use a more robust selector `company-funding tile-table table`.
-*   Updated `financial_scraper_module.js` with the refined selector.
-*   Completed attempt to fix Puppeteer table selection.
-*   Debugging pipeline: Script stops when initial steps are skipped.
-*   Outlined plan to add explicit input file checks before running each step.
-*   Completed implementation of incremental saving for Puppeteer scraper.
-*   Completed project structure reorganization.
-*   Completed attempt to fix Puppeteer table selection.
-*   Identified Puppeteer scraping as bottleneck. Discussed async vs. worker threads.
-*   Outlined plan to implement parallel scraping using Worker Threads for significant speedup. 
+*   Updated `pivot_rounds_module.js`
+*   Outlined plan to implement parallel scraping using Worker Threads for significant speedup.
+*   Added `numberOfWorkers` option to `config/pipeline_config.json`.
+*   Created `src/modules/financial_scraper_worker.js` with scraping logic for a single worker.
+*   Refactored `src/modules/financial_scraper_module.js` to manage workers, distribute tasks, and handle results/errors, writing to JSONL from the main thread.
+*   Completed implementation of parallel Puppeteer scraping using Worker Threads.
