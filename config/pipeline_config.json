@@ -1,0 +1,39 @@
+{
+    "inputFilePaths": {
+      "cookies": "data/input/cookies.json",
+      "rawCompanies": "data/raw/companies.json",
+      "processedCompanies": "data/processed/processed_companies.json",
+      "scrapedFinancials": "data/raw/scraped_financials.jsonl",
+      "mergedLong": "data/processed/merged_data_long.json",
+      "mergedWide": "data/processed/merged_data_wide.json"
+    },
+    "outputFilePaths": {
+      "processedCompaniesOutput": "data/processed/processed_companies.json",
+      "mergedLongOutput": "data/processed/merged_data_long.json",
+      "mergedWideOutput": "data/processed/merged_data_wide.json",
+      "mergedLongCsv": "data/output/merged_long.csv",
+      "mergedLongXlsx": "data/output/merged_long.xlsx",
+      "mergedWideCsv": "data/output/merged_wide.csv",
+      "mergedWideXlsx": "data/output/merged_wide.xlsx",
+      "rawCompaniesOutput": "data/raw/companies.json",
+      "scrapedFinancialsOutput": "data/raw/scraped_financials.jsonl"
+    },
+    "stepsToRun": {
+      "runCompaniesScraper": false,
+      "scrapeFinancialDetails": true,
+      "runPostprocessingCompanies": false,
+      "runMergingLong": true,
+      "runPivotingWide": true,
+      "runCsvConversionLong": true,
+      "runCsvConversionWide": true
+    },
+    "outputFormats": {
+      "generateLongFormat": true,
+      "generateWideFormat": true
+    },
+    "options": {
+      "cleanupIntermediateFiles": true,
+      "scraperPauseMs": 200,
+      "pageTimeoutMs": 60000
+    }
+  }

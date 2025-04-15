@@ -1,0 +1,52 @@
+[2025-04-15T17:21:14.121Z] 🚀 Starting scrape for: Funding Rounds
+[2025-04-15T17:21:14.129Z] 📦 Iteration #1 for Funding Rounds
+[2025-04-15T17:21:14.130Z] 📤 Sending request to https://www.crunchbase.com/v4/data/searches/funding_rounds?source=custom_advanced_search...
+[2025-04-15T17:21:14.967Z] ⏱ Response received in 0.84 sec
+[2025-04-15T17:21:15.180Z] ✅ Fetched 200 Funding Rounds. Total: 200
+[2025-04-15T17:21:15.181Z] ----------------------------------------
+[2025-04-15T17:21:16.192Z] 📦 Iteration #2 for Funding Rounds
+[2025-04-15T17:21:16.193Z] 📤 Sending request to https://www.crunchbase.com/v4/data/searches/funding_rounds?source=custom_advanced_search with after_id = 96c99527-f9fc-47a8-ae1d-ed926b354ae1...
+[2025-04-15T17:21:16.600Z] ⏱ Response received in 0.41 sec
+[2025-04-15T17:21:16.633Z] ✅ Fetched 200 Funding Rounds. Total: 400
+[2025-04-15T17:21:16.634Z] ----------------------------------------
+[2025-04-15T17:21:17.644Z] 📦 Iteration #3 for Funding Rounds
+[2025-04-15T17:21:17.644Z] 📤 Sending request to https://www.crunchbase.com/v4/data/searches/funding_rounds?source=custom_advanced_search with after_id = 662a22f2-df5d-4c64-b96e-df1d8f17f98d...
+[2025-04-15T17:21:18.109Z] ⏱ Response received in 0.46 sec
+[2025-04-15T17:21:18.141Z] ✅ Fetched 200 Funding Rounds. Total: 600
+[2025-04-15T17:21:18.142Z] ----------------------------------------
+[2025-04-15T17:21:19.151Z] 📦 Iteration #4 for Funding Rounds
+[2025-04-15T17:21:19.152Z] 📤 Sending request to https://www.crunchbase.com/v4/data/searches/funding_rounds?source=custom_advanced_search with after_id = 404a2f5b-9afc-4d64-834d-09d1abc955dd...
+[2025-04-15T17:21:19.624Z] ⏱ Response received in 0.47 sec
+[2025-04-15T17:21:19.676Z] ✅ Fetched 200 Funding Rounds. Total: 800
+[2025-04-15T17:21:19.676Z] ----------------------------------------
+[2025-04-15T17:21:20.685Z] 📦 Iteration #5 for Funding Rounds
+[2025-04-15T17:21:20.685Z] 📤 Sending request to https://www.crunchbase.com/v4/data/searches/funding_rounds?source=custom_advanced_search with after_id = 4de52d85-3026-48a7-9dd7-4a95a842dfe9...
+[2025-04-15T17:21:21.118Z] ⏱ Response received in 0.43 sec
+[2025-04-15T17:21:21.153Z] ✅ Fetched 200 Funding Rounds. Total: 1000
+[2025-04-15T17:21:21.154Z] ----------------------------------------
+[2025-04-15T17:21:22.160Z] 📦 Iteration #6 for Funding Rounds
+[2025-04-15T17:21:22.161Z] 📤 Sending request to https://www.crunchbase.com/v4/data/searches/funding_rounds?source=custom_advanced_search with after_id = c7439729-5318-ca30-a0b3-b16a13972dcc...
+[2025-04-15T17:21:22.536Z] ⏱ Response received in 0.38 sec
+[2025-04-15T17:21:22.566Z] ✅ Fetched 200 Funding Rounds. Total: 1200
+[2025-04-15T17:21:22.567Z] ----------------------------------------
+[2025-04-15T17:21:23.570Z] 📦 Iteration #7 for Funding Rounds
+[2025-04-15T17:21:23.571Z] 📤 Sending request to https://www.crunchbase.com/v4/data/searches/funding_rounds?source=custom_advanced_search with after_id = 00712ce8-22df-4bc2-80f6-118750b1eeea...
+[2025-04-15T17:21:24.032Z] ⏱ Response received in 0.46 sec
+[2025-04-15T17:21:24.065Z] ✅ Fetched 200 Funding Rounds. Total: 1400
+[2025-04-15T17:21:24.066Z] ----------------------------------------
+[2025-04-15T17:21:25.081Z] 📦 Iteration #8 for Funding Rounds
+[2025-04-15T17:21:25.082Z] 📤 Sending request to https://www.crunchbase.com/v4/data/searches/funding_rounds?source=custom_advanced_search with after_id = 4e528231-96e2-4932-8091-7af76600c3da...
+[2025-04-15T17:21:25.470Z] ⏱ Response received in 0.39 sec
+[2025-04-15T17:21:25.497Z] ✅ Fetched 200 Funding Rounds. Total: 1600
+[2025-04-15T17:21:25.498Z] ----------------------------------------
+[2025-04-15T17:21:26.509Z] 📦 Iteration #9 for Funding Rounds
+[2025-04-15T17:21:26.510Z] 📤 Sending request to https://www.crunchbase.com/v4/data/searches/funding_rounds?source=custom_advanced_search with after_id = e3534268-d507-41d2-a445-9dc8088214c7...
+[2025-04-15T17:21:26.819Z] ⏱ Response received in 0.31 sec
+[2025-04-15T17:21:26.826Z] ✅ Fetched 67 Funding Rounds. Total: 1667
+[2025-04-15T17:21:26.827Z] ----------------------------------------
+[2025-04-15T17:21:27.830Z] 📦 Iteration #10 for Funding Rounds
+[2025-04-15T17:21:27.831Z] 📤 Sending request to https://www.crunchbase.com/v4/data/searches/funding_rounds?source=custom_advanced_search with after_id = fc107363-72c2-41b9-9027-fefe11b51715...
+[2025-04-15T17:21:28.235Z] ⏱ Response received in 0.40 sec
+[2025-04-15T17:21:28.236Z] ⏹️ Received 0 entities. Assuming end of data.
+[2025-04-15T17:21:28.236Z] 🎉 Scraping finished for Funding Rounds. Total entities fetched: 1667
+[2025-04-15T17:21:28.313Z] 📁 Data saved to funding_rounds.json
