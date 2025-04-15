@@ -20,9 +20,9 @@ async function scrapeCompanyFinancials(page, companyInfo) {
     await page.goto(url, { waitUntil: 'networkidle2' });
     logWorker(`Page loaded for ${companyName}.`);
 
-    const tableSelector = 'company-funding tile-table table';
+    const tableSelector = '#funding_rounds > section > div > tile-table > div > table';
     logWorker(`Waiting for table selector: "${tableSelector}"`);
-    await page.waitForSelector(tableSelector, { timeout: 30000 });
+    await page.waitForSelector(tableSelector, { timeout: 60000 });
     logWorker(`Table found for ${companyName}. Scraping rows...`);
 
     const roundsOnPage = await page.$$eval(`${tableSelector} tbody tr`, (rows) => {
@@ -63,12 +63,20 @@ async function scrapeCompanyFinancials(page, companyInfo) {
     }));
 }
 
+// --- Utility function for delay ---
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 // --- Main Worker Function ---
 async function runWorker() {
+    // Get all options, including retry config
     const { companiesChunk, cookiesFilePath, options } = workerData;
-    const { scraperPauseMs = 2000, pageTimeoutMs = 60000 } = options;
-    logWorker(`Received ${companiesChunk.length} companies to process.`);
+    const {
+        scraperPauseMs = 2000,
+        pageTimeoutMs = 60000,
+        maxRetriesPerCompany = 0, // Default to 0 retries if not provided
+        retryDelayMs = 3000
+    } = options;
+    logWorker(`Received ${companiesChunk.length} companies. Options: Pause=${scraperPauseMs}ms, Timeout=${pageTimeoutMs}ms, Retries=${maxRetriesPerCompany}, RetryDelay=${retryDelayMs}ms`);
 
     let cookies;
     try {
@@ -89,42 +97,64 @@ async function runWorker() {
         browser = await puppeteer.launch({ headless: true });
         logWorker("Browser launched.");
 
+        // --- Process companies with retry loop ---
         for (let i = 0; i < companiesChunk.length; i++) {
             const companyInfo = companiesChunk[i];
             const companyName = companyInfo["Organization Name"] || 'Unknown Company';
             const permalink = companyInfo["Organization Permalink"];
             logWorker(`Processing company ${i + 1}/${companiesChunk.length}: ${companyName}...`);
 
-            let page = null;
-            try {
-                page = await browser.newPage();
-                await page.setCookie(...cookies);
-                await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36');
-                await page.setDefaultNavigationTimeout(pageTimeoutMs);
-                await page.setDefaultTimeout(pageTimeoutMs);
+            let success = false;
+            // --- Retry Loop ---
+            // Total attempts = 1 (initial) + maxRetriesPerCompany
+            for (let attempt = 0; attempt <= maxRetriesPerCompany; attempt++) {
+                let page = null;
+                try {
+                    logWorker(`Attempt ${attempt + 1} for ${companyName}...`);
+                    page = await browser.newPage();
+                    await page.setCookie(...cookies);
+                    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36');
+                    await page.setDefaultNavigationTimeout(pageTimeoutMs);
+                    await page.setDefaultTimeout(pageTimeoutMs);
 
-                const companyRounds = await scrapeCompanyFinancials(page, companyInfo);
+                    const companyRounds = await scrapeCompanyFinancials(page, companyInfo);
 
-                // Send scraped data back to the main thread
-                if (companyRounds.length > 0) {
-                    parentPort.postMessage({ type: 'data', payload: companyRounds });
+                    // Send scraped data back
+                    if (companyRounds.length > 0) {
+                        parentPort.postMessage({ type: 'data', payload: companyRounds });
+                    }
+                    success = true; // Mark as successful for this company
+                    logWorker(`Successfully processed ${companyName} on attempt ${attempt + 1}.`);
+                    break; // Exit retry loop on success
+
+                } catch (err) {
+                    logWorker(`❌ Error on attempt ${attempt + 1} for ${companyName}: ${err.message}`);
+                    if (page) { // Try to close page even on error, ignore close errors
+                         try { await page.close(); logWorker("Closed page after error."); } catch (closeErr) { /* ignore */ }
+                    }
+
+                    if (attempt < maxRetriesPerCompany) {
+                        logWorker(`Waiting ${retryDelayMs}ms before retry...`);
+                        await delay(retryDelayMs);
+                        logWorker(`Retrying (${attempt + 2}/${maxRetriesPerCompany + 1})...`);
+                    } else {
+                        logWorker(`❌ Max retries (${maxRetriesPerCompany + 1}) reached for ${companyName}. Giving up.`);
+                        // Send final error message back
+                        parentPort.postMessage({ type: 'error', payload: { permalink: permalink, name: companyName, error: `Max retries reached: ${err.message}` } });
+                        // Keep success = false
+                    }
+                } finally {
+                     // Ensure page is closed if loop finishes or breaks
+                     if (page && !page.isClosed()) {
+                        try { await page.close(); } catch (closeErr) { /* ignore */ }
+                     }
                 }
+            } // --- End Retry Loop ---
 
-            } catch (err) {
-                logWorker(`❌ Error processing ${companyName} (Permalink: ${permalink}): ${err.message}`);
-                // Send error details back to the main thread
-                parentPort.postMessage({ type: 'error', payload: { permalink: permalink, name: companyName, error: err.message } });
-                // Continue to the next company in the chunk
-            } finally {
-                if (page) {
-                    await page.close();
-                    logWorker(`Page closed for ${companyName}.`);
-                }
-                 // Pause before the next company in this worker
-                 if (i < companiesChunk.length - 1) {
-                    logWorker(`Worker pausing for ${scraperPauseMs / 1000} seconds...`);
-                    await new Promise(resolve => setTimeout(resolve, scraperPauseMs));
-                 }
+            // Pause before the next company (only if this one succeeded or failed finally)
+            if (i < companiesChunk.length - 1) {
+                logWorker(`Worker pausing for ${scraperPauseMs / 1000} seconds...`);
+                await delay(scraperPauseMs);
             }
         } // End company loop for this worker
 

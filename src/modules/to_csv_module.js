@@ -39,7 +39,6 @@ async function runConversion(inputFile, csvOutputFile, xlsxOutputFile, sheetName
              return false; // Indicate failure
         }
 
-
         if (!Array.isArray(data)) {
             throw new Error("Input data is not a JSON array.");
         }
@@ -50,19 +49,68 @@ async function runConversion(inputFile, csvOutputFile, xlsxOutputFile, sheetName
             return true; // Considered successful as there's nothing to convert
         }
 
-        // --- CSV Conversion ---
-        // Determine headers from the first object to handle potentially sparse wide format
-        const fields = Object.keys(data[0] || {});
-        if (fields.length === 0) {
-            logCsv("⚠️ Data array contains empty objects. Skipping output generation.");
+        // --- Determine all possible headers ---
+        logCsv("Determining headers from all data objects...");
+        const allKeys = new Set();
+        data.forEach(obj => {
+            // Check if obj is a valid object before getting keys
+            if (obj && typeof obj === 'object') {
+                Object.keys(obj).forEach(key => allKeys.add(key));
+            } else {
+                logCsv(`⚠️ Found non-object item in data array: ${JSON.stringify(obj)}`);
+            }
+        });
+
+        if (allKeys.size === 0) {
+             logCsv("⚠️ No data keys found in input objects. Skipping output generation.");
              return true;
         }
 
+        // Sort keys: Company fields first alphabetically, then Round fields numerically/alphabetically
+        const fields = Array.from(allKeys).sort((a, b) => {
+            const isARound = a.startsWith('Round ');
+            const isBRound = b.startsWith('Round ');
 
+            if (!isARound && isBRound) return -1;
+            if (isARound && !isBRound) return 1;
+
+            if (!isARound && !isBRound) {
+                return a.localeCompare(b);
+            }
+
+            if (isARound && isBRound) {
+                const matchA = a.match(/Round (\d+)_(.+)/);
+                const matchB = b.match(/Round (\d+)_(.+)/);
+
+                if (matchA && matchB) { // Check if regex matched both
+                    const numA = parseInt(matchA[1], 10); // Specify base 10
+                    const suffixA = matchA[2];
+                    const numB = parseInt(matchB[1], 10); // Specify base 10
+                    const suffixB = matchB[2];
+
+                    if (numA !== numB) {
+                        return numA - numB;
+                    }
+                    return suffixA.localeCompare(suffixB);
+                } else {
+                    // Fallback if regex fails for one or both
+                    logCsv(`⚠️ Could not parse round number/suffix for comparison: "${a}" vs "${b}"`);
+                    return a.localeCompare(b);
+                }
+            }
+            // Fallback for safety, should not be reached
+            return a.localeCompare(b);
+        });
+        logCsv(`Determined ${fields.length} headers.`);
+        // logCsv(`Headers order: ${fields.join(', ')}`); // Optional: log header order for debugging
+
+
+        // --- CSV Conversion ---
         logCsv(`Generating CSV: ${csvOutputFile}`);
         const csvHeader = fields.map(escapeCsvValue).join(",");
         const csvRows = data.map(entry =>
-            fields.map(field => escapeCsvValue(entry[field])).join(",")
+            // Ensure entry is an object before accessing fields
+            fields.map(field => escapeCsvValue(entry && typeof entry === 'object' ? entry[field] : null)).join(",")
         );
         const csvContent = [csvHeader, ...csvRows].join("\n");
 
@@ -71,20 +119,19 @@ async function runConversion(inputFile, csvOutputFile, xlsxOutputFile, sheetName
 
         // --- XLSX Conversion ---
         logCsv(`Generating XLSX: ${xlsxOutputFile}`);
-        // json_to_sheet handles potentially missing fields correctly
+        // Provide explicit header order to json_to_sheet
         const worksheet = XLSX.utils.json_to_sheet(data, { header: fields });
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
-        // Use writeFile (synchronous) or write (async requires buffer handling)
-        // Sticking with writeFile for simplicity as it's often used in examples
         XLSX.writeFile(workbook, xlsxOutputFile);
         logCsv(`✅ Excel file successfully saved: ${xlsxOutputFile}`);
-        return true; // Indicate success
+        return true;
 
     } catch (error) {
         logCsv(`❌ An error occurred during conversion: ${error.message}`);
-        // console.error(error.stack);
+        // Log stack trace for better debugging
+        console.error(error.stack);
         return false; // Indicate failure
     }
 }

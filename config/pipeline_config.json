@@ -1,3 +1,4 @@
+
 {
     "inputFilePaths": {
       "cookies": "data/input/cookies.json",
@@ -20,7 +21,7 @@
     },
     "stepsToRun": {
       "runCompaniesScraper": false,
-      "scrapeFinancialDetails": true,
+      "scrapeFinancialDetails": false,
       "runPostprocessingCompanies": false,
       "runMergingLong": true,
       "runPivotingWide": true,
@@ -35,6 +36,6 @@
       "cleanupIntermediateFiles": true,
       "scraperPauseMs": 2000,
       "pageTimeoutMs": 60000,
-      "numberOfWorkers": 3
+      "numberOfWorkers": 5
     }
   }

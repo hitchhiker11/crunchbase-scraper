@@ -16,9 +16,15 @@ async function scrapeFinancialDetails(companiesFilePath, cookiesFilePath, output
     logScraper(`Cookies input: ${cookiesFilePath}`);
     logScraper(`Output file (JSONL): ${outputFile}`);
 
-    // Get options, provide default for worker count
-    const { numberOfWorkers = 1, scraperPauseMs = 2000, pageTimeoutMs = 60000 } = options;
-    logScraper(`Using ${numberOfWorkers} worker(s).`);
+    // Get options, including new retry options
+    const {
+        numberOfWorkers = 1,
+        scraperPauseMs = 2000,
+        pageTimeoutMs = 60000,
+        maxRetriesPerCompany = 2, // Default retries
+        retryDelayMs = 3000     // Default retry delay
+    } = options;
+    logScraper(`Using ${numberOfWorkers} worker(s). Retries per company: ${maxRetriesPerCompany}, Delay: ${retryDelayMs}ms.`);
 
     let companiesData;
     let overallSuccess = true;
@@ -70,7 +76,12 @@ async function scrapeFinancialDetails(companiesFilePath, cookiesFilePath, output
                     workerId: i + 1, // Assign an ID for logging
                     companiesChunk: companyChunks[i],
                     cookiesFilePath: cookiesFilePath, // Pass the path, worker reads it
-                    options: { scraperPauseMs, pageTimeoutMs } // Pass relevant options
+                    options: { // Pass all relevant options
+                        scraperPauseMs,
+                        pageTimeoutMs,
+                        maxRetriesPerCompany, // Pass retry config
+                        retryDelayMs        // Pass retry config
+                    }
                 };
 
                 const worker = new Worker(workerPath, { workerData });
