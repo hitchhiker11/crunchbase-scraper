@@ -20,9 +20,9 @@
       "scrapedFinancialsOutput": "data/raw/scraped_financials.jsonl"
     },
     "stepsToRun": {
-      "runCompaniesScraper": false,
-      "scrapeFinancialDetails": false,
-      "runPostprocessingCompanies": false,
+      "runCompaniesScraper": false, 
+      "scrapeFinancialDetails": false, 
+      "runPostprocessingCompanies": true, 
       "runMergingLong": true,
       "runPivotingWide": true,
       "runCsvConversionLong": true,

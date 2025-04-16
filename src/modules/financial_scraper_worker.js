@@ -36,7 +36,24 @@ async function scrapeCompanyFinancials(page, companyInfo) {
                 const announcedDateEl = cells[0]?.querySelector('span.field-type-date');
                 const transactionLinkEl = cells[1]?.querySelector('a.component--field-formatter');
                 const numInvestorsEl = cells[2]?.querySelector('a.field-type-integer');
-                const moneyRaisedEl = cells[3]?.querySelector('span.field-type-money');
+                const moneyRaisedCell = cells[3];
+                let moneyRaisedValue = null;
+
+                if (moneyRaisedCell) {
+                    const moneyRaisedEl = moneyRaisedCell.querySelector('span.field-type-money');
+                    if (moneyRaisedEl) {
+                        moneyRaisedValue = moneyRaisedEl.title || moneyRaisedEl.innerText?.trim();
+                        if (moneyRaisedValue === '—') {
+                            moneyRaisedValue = null;
+                        }
+                    } else {
+                        const cellText = moneyRaisedCell.innerText?.trim();
+                        if (cellText && cellText !== '—') {
+                            moneyRaisedValue = cellText;
+                        }
+                    }
+                }
+
                 const leadInvestorsEls = cells[4]?.querySelectorAll('identifier-multi-formatter a');
                 const leadInvestors = leadInvestorsEls ? Array.from(leadInvestorsEls).map(el => getText(el)).filter(Boolean).join(', ') : null;
 
@@ -45,7 +62,7 @@ async function scrapeCompanyFinancials(page, companyInfo) {
                     "Transaction Name": getText(transactionLinkEl),
                     "Transaction Link": getHref(transactionLinkEl),
                     "Number of Investors": getText(numInvestorsEl),
-                    "Money Raised": moneyRaisedEl ? (moneyRaisedEl.title || getText(moneyRaisedEl)) : null,
+                    "Money Raised": moneyRaisedValue,
                     "Lead Investors": leadInvestors
                 });
             }

@@ -39,6 +39,7 @@ async function runConversion(inputFile, csvOutputFile, xlsxOutputFile, sheetName
              return false; // Indicate failure
         }
 
+
         if (!Array.isArray(data)) {
             throw new Error("Input data is not a JSON array.");
         }
@@ -53,11 +54,8 @@ async function runConversion(inputFile, csvOutputFile, xlsxOutputFile, sheetName
         logCsv("Determining headers from all data objects...");
         const allKeys = new Set();
         data.forEach(obj => {
-            // Check if obj is a valid object before getting keys
-            if (obj && typeof obj === 'object') {
+            if (obj && typeof obj === 'object') { // Ensure obj is an object
                 Object.keys(obj).forEach(key => allKeys.add(key));
-            } else {
-                logCsv(`⚠️ Found non-object item in data array: ${JSON.stringify(obj)}`);
             }
         });
 
@@ -66,39 +64,42 @@ async function runConversion(inputFile, csvOutputFile, xlsxOutputFile, sheetName
              return true;
         }
 
+
         // Sort keys: Company fields first alphabetically, then Round fields numerically/alphabetically
         const fields = Array.from(allKeys).sort((a, b) => {
             const isARound = a.startsWith('Round ');
             const isBRound = b.startsWith('Round ');
 
+            // Rule 1: Non-round fields come before round fields
             if (!isARound && isBRound) return -1;
             if (isARound && !isBRound) return 1;
 
+            // Rule 2: Sort non-round fields alphabetically
             if (!isARound && !isBRound) {
                 return a.localeCompare(b);
             }
 
+            // Rule 3: Sort round fields by round number, then by suffix
             if (isARound && isBRound) {
                 const matchA = a.match(/Round (\d+)_(.+)/);
                 const matchB = b.match(/Round (\d+)_(.+)/);
 
-                if (matchA && matchB) { // Check if regex matched both
-                    const numA = parseInt(matchA[1], 10); // Specify base 10
+                if (matchA && matchB) {
+                    const numA = parseInt(matchA[1]);
                     const suffixA = matchA[2];
-                    const numB = parseInt(matchB[1], 10); // Specify base 10
+                    const numB = parseInt(matchB[1]);
                     const suffixB = matchB[2];
 
                     if (numA !== numB) {
-                        return numA - numB;
+                        return numA - numB; // Sort by round number first
                     }
-                    return suffixA.localeCompare(suffixB);
-                } else {
-                    // Fallback if regex fails for one or both
-                    logCsv(`⚠️ Could not parse round number/suffix for comparison: "${a}" vs "${b}"`);
-                    return a.localeCompare(b);
+                    return suffixA.localeCompare(suffixB); // Then by suffix name
                 }
+                // Fallback sort if regex fails (shouldn't happen with correct format)
+                return a.localeCompare(b);
             }
-            // Fallback for safety, should not be reached
+
+            // Should not be reached, but provide default sort
             return a.localeCompare(b);
         });
         logCsv(`Determined ${fields.length} headers.`);
@@ -130,8 +131,7 @@ async function runConversion(inputFile, csvOutputFile, xlsxOutputFile, sheetName
 
     } catch (error) {
         logCsv(`❌ An error occurred during conversion: ${error.message}`);
-        // Log stack trace for better debugging
-        console.error(error.stack);
+        // console.error(error.stack);
         return false; // Indicate failure
     }
 }

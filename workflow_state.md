@@ -63,6 +63,7 @@ DONE
     *   Modify `financial_scraper_worker.js` to wrap single-company processing in a retry loop.
 19. **Verify Merging Logic:** Confirm that `merge_data_module.js` and `pivot_rounds_module.js` correctly handle missing/incomplete funding round data when creating long and wide formats based on `processed_companies.json`. (Confirmed: Current logic is correct).
 20. **Fix Wide Format Headers:** Modify `to_csv_module.js` to determine CSV/XLSX headers by scanning keys from *all* objects in the wide format JSON, not just the first one, and sort headers logically.
+21. **Fix Pipeline Flow:** Ensure Cleanup and Final Status blocks in `run_pipeline.js` execute correctly after the main try...catch block.
 
 ## Log
 *   Created `workflow_state.md`.
@@ -116,3 +117,5 @@ DONE
 *   Outlined plan to modify `to_csv_module.js` to scan all objects for headers.
 *   Modified `to_csv_module.js` to collect unique keys from all data objects and sort them logically (company fields first, then round fields) before generating CSV/XLSX.
 *   Completed fix for wide format header generation.
+*   Debugging pipeline: Script stopped after checking the first skipped step. Logs showed execution exited the main try block prematurely.
+*   Corrected the placement of Cleanup and Final Status logic in `run_pipeline.js` to ensure they execute after the main pipeline steps.
